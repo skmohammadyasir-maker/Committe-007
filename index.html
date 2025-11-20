@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Black Force 007 — Complaint Demo (Frontend Only)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#071428;--card:#0e2433;--accent:#0b84ff;--muted:#9fb6d8}
+  body{font-family:Inter,Arial,Helvetica,sans-serif;background:linear-gradient(180deg,#041027,#072033);color:#e7f2ff;margin:0;padding:18px}
+  .wrap{max-width:980px;margin:0 auto;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:10px;padding:18px;box-shadow:0 10px 30px rgba(2,6,23,0.6)}
+  header{display:flex;justify-content:space-between;align-items:center}
+  h1{font-size:20px;margin:0}
+  .muted{color:var(--muted);font-size:13px}
+  .grid{display:grid;grid-template-columns:1fr 360px;gap:16px;margin-top:14px}
+  .card{background:rgba(255,255,255,0.02);padding:12px;border-radius:8px}
+  label{display:block;font-size:13px;margin-top:8px;color:var(--muted)}
+  input[type=text],textarea,input[type=file],select{width:100%;padding:10px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;box-sizing:border-box;margin-top:6px}
+  textarea{min-height:120px;resize:vertical}
+  .btn{background:var(--accent);color:white;padding:10px 12px;border-radius:8px;border:none;cursor:pointer;margin-top:10px}
+  .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);padding:8px;border-radius:8px;cursor:pointer}
+  .list{max-height:520px;overflow:auto;padding:6px}
+  .item{border:1px solid rgba(255,255,255,0.03);padding:10px;border-radius:8px;margin-bottom:10px;background:rgba(255,255,255,0.01)}
+  .small{font-size:13px;color:var(--muted)}
+  .status{display:inline-block;padding:6px 8px;border-radius:6px;font-size:12px}
+  .st-pending{background:#f5a524;color:#1b0a00}
+  .st-progress{background:#ffdcdc;color:#5b1b00}
+  .st-resolved{background:#e6fbed;color:#063b10}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px}
+  footer{margin-top:12px;font-size:12px;color:var(--muted)}
+  .admin-note{font-size:13px;color:#ffd666;background:rgba(255,214,102,0.06);padding:8px;border-radius:6px;margin-top:8px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr} .wrap{padding:12px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Black Force 007 — Complaint Portal (Demo)</h1>
+      <div class="muted">Submit complaint → Club review → If not satisfied → Forward to Govt (User-initiated)</div>
+    </div>
+    <div>
+      <div class="muted">You: <strong id="userBadge">Not signed</strong></div>
+      <div style="margin-top:6px">
+        <button id="btnSignIn" class="btn-ghost">Login / Register</button>
+        <button id="btnAnon" class="btn-ghost">Quick Anonymous</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- MAIN -->
+    <div>
+      <div class="card">
+        <h3>Submit a Complaint</h3>
+        <div class="hint">Upload photo/video as proof. You may submit anonymously.</div>
+
+        <label>Short title</label>
+        <input id="title" type="text" placeholder="e.g., Road pich is too thin">
+
+        <label>Description</label>
+        <textarea id="desc" placeholder="Describe the issue, location, date, observation..."></textarea>
+
+        <label>Location (address / landmark)</label>
+        <input id="location" type="text" placeholder="e.g., Singur - Bilatpur main road">
+
+        <label>Upload evidence (image/video)</label>
+        <input id="file" type="file" accept="image/*,video/*">
+
+        <label><input id="anon" type="checkbox"> Submit anonymously</label>
+
+        <div style="display:flex;gap:8px">
+          <button id="btnSubmit" class="btn">Submit Complaint</button>
+          <button id="btnClear" class="btn-ghost">Clear</button>
+        </div>
+        <div id="submitMsg" class="small"></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h3>Public Complaints</h3>
+        <div class="list" id="complaintList">Loading…</div>
+      </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <aside>
+      <div class="card">
+        <h4>User Profile</h4>
+        <div id="profileArea">
+          <div class="small">Not signed in</div>
+          <div style="margin-top:8px">
+            <button id="btnProfile" class="btn-ghost">Open Profile</button>
+          </div>
+        </div>
+        <div class="admin-note" id="adminNote" style="display:none">
+          Admin functions enabled.
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h4>How forwarding works</h4>
+        <div class="small">
+          1) Click "Forward" on any complaint → system generates a PDF for that complaint and downloads it.<br>
+          2) An email window (mailto:) opens with suggested subject/body. Attach the downloaded PDF and send to the government office email.<br>
+          3) This is user-initiated (safe & legal). Never auto-send on behalf of user.
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h4>Admin contact</h4>
+        <div class="small">If you are admin, use Admin UID list to enable status updates (in code).</div>
+      </div>
+    </aside>
+  </div>
+
+  <footer>Demo — Replace Firebase config below with your own project. Contact: admin@blackforce007.example</footer>
+</div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+
+<!-- jsPDF for client-side PDF generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+/*
+  READY-TO-USE FRONTEND DEMO
+  --------------------------
+  Instructions:
+  1) Create Firebase project (Firestore, Storage, Auth: Email/Password + Anonymous).
+  2) Replace firebaseConfig below with your project's web config.
+  3) Open this HTML (or host on GitHub Pages / Replit).
+  4) Firestore security: for demo allow reads; in production tighten rules.
+*/
+
+/* ====== CONFIG: replace these with your Firebase Web App config ====== */
+const firebaseConfig = {
+  apiKey: "REPLACE_API_KEY",
+  authDomain: "REPLACE_AUTH_DOMAIN",
+  projectId: "REPLACE_PROJECT_ID",
+  storageBucket: "REPLACE_STORAGE_BUCKET",
+  messagingSenderId: "REPLACE_MSG_SENDER",
+  appId: "REPLACE_APP_ID"
+};
+/* ================================================================== */
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+// Simple admin UID list (put your admin user uid(s) here after creating admin account)
+const ADMIN_UIDS = [
+  // Example: "abc123uid"
+];
+
+// DOM
+const userBadge = document.getElementById('userBadge');
+const btnSignIn = document.getElementById('btnSignIn');
+const btnAnon = document.getElementById('btnAnon');
+const btnSubmit = document.getElementById('btnSubmit');
+const btnClear = document.getElementById('btnClear');
+const submitMsg = document.getElementById('submitMsg');
+const complaintList = document.getElementById('complaintList');
+const profileArea = document.getElementById('profileArea');
+const adminNote = document.getElementById('adminNote');
+
+// auth UI
+btnSignIn.addEventListener('click', async ()=>{
+  // simple prompt-based login/register for demo
+  const action = prompt('Type "login" or "register"');
+  if(!action) return;
+  if(action.toLowerCase()==='register'){
+    const email = prompt('Email (register):');
+    const pass = prompt('Password (min 6 chars):');
+    if(!email||!pass) return alert('Canceled');
+    try{
+      await auth.createUserWithEmailAndPassword(email,pass);
+      alert('Registered & signed in');
+    }catch(e){ alert('Error: '+e.message); }
+  } else {
+    const email = prompt('Email (login):');
+    const pass = prompt('Password:');
+    if(!email||!pass) return alert('Canceled');
+    try{ await auth.signInWithEmailAndPassword(email,pass); alert('Signed in'); }catch(e){ alert('Error: '+e.message); }
+  }
+});
+
+btnAnon.addEventListener('click', async ()=>{
+  try{ await auth.signInAnonymously(); alert('Signed in anonymously'); }catch(e){ alert('Error: '+e.message); }
+});
+
+auth.onAuthStateChanged(user=>{
+  if(user){
+    const name = user.email ? user.email : ('User-'+user.uid.slice(0,6));
+    userBadge.textContent = name;
+    // show profile area
+    profileArea.innerHTML = `<div class="small">Signed as: <strong>${name}</strong></div>
+      <div style="margin-top:8px"><button id="btnLogout" class="btn-ghost">Logout</button></div>`;
+    document.getElementById('btnLogout').addEventListener('click', ()=> auth.signOut());
+    // admin?
+    if(ADMIN_UIDS.includes(user.uid)) adminNote.style.display='block'; else adminNote.style.display='none';
+  } else {
+    userBadge.textContent = 'Not signed';
+    profileArea.innerHTML = `<div class="small">Not signed in</div><div style="margin-top:8px"><button id="btnProfile" class="btn-ghost">Open Profile</button></div>`;
+  }
+});
+
+// Submit complaint (upload to firebase storage and store doc in firestore)
+btnSubmit.addEventListener('click', async ()=>{
+  const title = document.getElementById('title').value.trim();
+  const desc = document.getElementById('desc').value.trim();
+  const location = document.getElementById('location').value.trim();
+  const anon = document.getElementById('anon').checked;
+  const fileInput = document.getElementById('file');
+  if(!title || !desc) return alert('Title and description required');
+  submitMsg.textContent = 'Submitting… please wait';
+  try{
+    // file upload
+    let fileUrl = '';
+    if(fileInput.files.length){
+      const f = fileInput.files[0];
+      const ext = f.name.split('.').pop();
+      const fname = 'evidence/'+Date.now()+'_'+Math.random().toString(36).slice(2)+'.'+ext;
+      const ref = storage.ref().child(fname);
+      const snap = await ref.put(f);
+      fileUrl = await snap.ref.getDownloadURL();
+    }
+    const user = auth.currentUser;
+    const doc = {
+      title, description: desc, location, fileUrl,
+      anon: !!anon,
+      userId: user ? user.uid : null,
+      userEmail: user && user.email ? user.email : null,
+      status: 'pending',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    const r = await db.collection('complaints').add(doc);
+    submitMsg.textContent = 'Submitted. ID: '+r.id;
+    // clear form
+    document.getElementById('title').value=''; document.getElementById('desc').value=''; document.getElementById('location').value=''; fileInput.value='';
+    loadComplaints();
+  }catch(e){
+    console.error(e);
+    submitMsg.textContent = 'Error: '+e.message;
+  }
+});
+
+btnClear.addEventListener('click', ()=>{ document.getElementById('title').value=''; document.getElementById('desc').value=''; document.getElementById('location').value=''; document.getElementById('file').value=''; });
+
+// load complaints (public)
+async function loadComplaints(){
+  complaintList.innerHTML = 'Loading…';
+  const snap = await db.collection('complaints').orderBy('createdAt','desc').limit(50).get();
+  complaintList.innerHTML = '';
+  snap.forEach(doc=>{
+    const d = doc.data();
+    const id = doc.id;
+    const el = document.createElement('div');
+    el.className = 'item';
+    const title = escapeHtml(d.title || 'Untitled');
+    const desc = escapeHtml(d.description || '');
+    const loc = escapeHtml(d.location || '');
+    const anon = d.anon ? true : false;
+    const status = d.status || 'pending';
+    const statusClass = status==='pending'?'st-pending':(status==='in_progress'?'st-progress':'st-resolved');
+    let html = `<h4>${title} <span class="status ${statusClass}">${status}</span></h4>`;
+    if(anon) html += `<div class="small"><em>Submitted anonymously</em></div>`;
+    else if(d.userEmail) html += `<div class="small">By: ${escapeHtml(d.userEmail)}</div>`;
+    html += `<div style="margin-top:6px">${desc}</div>`;
+    if(loc) html += `<div class="small" style="margin-top:6px">Location: ${loc}</div>`;
+    if(d.fileUrl) html += `<div style="margin-top:6px"><a href="${d.fileUrl}" target="_blank">View evidence</a></div>`;
+    html += `<div style="margin-top:8px">`;
+    html += `<button class="btn-ghost" onclick="viewDetails('${id}')">View</button> `;
+    html += `<button class="btn-ghost" onclick="forwardComplaint('${id}')">Forward</button> `;
+    // admin controls (only if logged-in admin)
+    const currentUser = auth.currentUser;
+    if(currentUser && ADMIN_UIDS.includes(currentUser.uid)){
+      html += `<button class="btn" onclick="updateStatus('${id}','in_progress')">Mark In Progress</button> `;
+      html += `<button class="btn" onclick="updateStatus('${id}','resolved')">Mark Resolved</button> `;
+    }
+    html += `</div>`;
+    el.innerHTML = html;
+    complaintList.appendChild(el);
+  });
+}
+loadComplaints();
+
+// helper view
+window.viewDetails = async (id)=>{
+  const doc = await db.collection('complaints').doc(id).get();
+  if(!doc.exists) return alert('Not found');
+  const d = doc.data();
+  alert(`Title: ${d.title}\nLocation: ${d.location}\nStatus: ${d.status}\n\nDescription:\n${d.description}`);
+};
+
+// update status (admin only)
+window.updateStatus = async (id,status)=>{
+  const user = auth.currentUser;
+  if(!user || !ADMIN_UIDS.includes(user.uid)) return alert('Only admin can update status');
+  await db.collection('complaints').doc(id).update({status, updatedAt: firebase.firestore.FieldValue.serverTimestamp()});
+  alert('Status updated');
+  loadComplaints();
+};
+
+// Forward complaint (user-initiated): generate PDF via jsPDF, download, open mailto link with suggested subject/body
+window.forwardComplaint = async (id)=>{
+  try{
+    const docSnap = await db.collection('complaints').doc(id).get();
+    if(!docSnap.exists) return alert('Not found');
+    const d = docSnap.data();
+    // prepare HTML for pdf content (simple)
+    const content = `
+Complaint ID: ${id}
+Title: ${d.title}
+Location: ${d.location || ''}
+Status: ${d.status || ''}
+Date: ${d.createdAt && d.createdAt.toDate ? d.createdAt.toDate().toLocaleString() : 'N/A'}
+
+Description:
+${d.description}
+
+Submitted by: ${d.anon ? 'Anonymous' : (d.userEmail || 'Registered user')}
+Evidence URL: ${d.fileUrl || 'N/A'}
+`;
+    // use jsPDF to create simple txt/pdf
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF();
+    const lines = pdf.splitTextToSize(content, 180);
+    pdf.setFontSize(11);
+    pdf.text(lines, 10, 10);
+    // if evidence is image and hosted on same-origin accessible (CORS), we can embed; otherwise skip
+    const pdfFileName = `complaint_${id}.pdf`;
+    pdf.save(pdfFileName); // triggers download
+    // open mailto (user must attach PDF manually)
+    const govtEmail = prompt('Enter government office email to forward to (e.g., bdo@district.gov.in):');
+    if(!govtEmail) return;
+    const subject = encodeURIComponent(`Citizen complaint: ${d.title} [ID:${id}]`);
+    let body = `Dear Officer,
+
+Please find a citizen complaint (ID: ${id}) regarding: ${d.title}
+
+Description:
+${d.description}
+
+Location: ${d.location || 'N/A'}
+
+Evidence: ${d.fileUrl || 'N/A'}
+
+(Attached is the complaint PDF. Please attach the downloaded PDF when sending.)
+    
+Regards,
+Concerned Citizen
+`;
+    const mailto = `mailto:${govtEmail}?subject=${subject}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailto;
+  }catch(e){
+    console.error(e);
+    alert('Error: '+e.message);
+  }
+};
+
+// escape html helper
+function escapeHtml(s){ if(!s) return ''; return s.replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]; }); }
+
+// Realtime update listener (optional): updates list when db changes
+db.collection('complaints').orderBy('createdAt','desc').limit(50).onSnapshot(snap=>{
+  // simple refresh
+  loadComplaints();
+});
+
+</script>
+</body>
+        </html>
