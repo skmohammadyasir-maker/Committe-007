@@ -1,112 +1,802 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Club Quiz Engine — ক্লাব কুইজ</title>
-
-  <!-- Tailwind -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Font -->
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;700&display=swap" rel="stylesheet">
-
-  <!-- Firebase Auth যোগ করা হলো -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-
-  <style>
-    :root { --accent: #7c3aed; --muted:#6b7280; }
-    body { font-family: 'Noto Sans Bengali', system-ui, -apple-system, sans-serif; }
-    .btn { @apply px-4 py-2 rounded-full font-semibold shadow-sm; }
-    .glass { background: rgba(255,255,255,0.7); backdrop-filter: blur(6px); }
-    .answer-btn { transition: transform .15s, box-shadow .15s; }
-    .answer-btn:active { transform: scale(.99); }
-    .is-correct { box-shadow: 0 6px 25px rgba(34,197,94,.14); border: 2px solid #22c55e; }
-    .is-wrong { box-shadow: 0 6px 25px rgba(239,68,68,.12); border: 2px solid #ef4444; opacity: .95; }
-  </style>
-</head>
-<body class="bg-gradient-to-br from-slate-50 to-indigo-50 min-h-screen">
-  <div id="root" class="min-h-screen"></div>
-
-  <!-- React -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-
-  <script type="text/babel">
-  const { useState, useEffect, useRef } = React;
-
-  /***** Firebase Config (same as before) *****/
-  const firebaseConfig = {
-    apiKey: "REPLACE_API_KEY",
-    authDomain: "REPLACE_PROJECT.firebaseapp.com",
-    projectId: "REPLACE_PROJECT",
-    storageBucket: "REPLACE_PROJECT.appspot.com",
-    messagingSenderId: "SENDER_ID",
-    appId: "APP_ID",
-  };
-  /******************************************/
-
-  // Init Firebase
-  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
-  const auth = firebase.auth();
-
-  // Google Auth Provider
-  const provider = new firebase.auth.GoogleAuthProvider();
-
-  // SAMPLE QUESTIONS (unchanged)
-  const SAMPLE_QUESTIONS = [...(same questions as before)...]
-
-  // Main App function (unchanged logic except login added)
-  function App(){
-    const [user, setUser] = useState(null);
-
-    // load session
-    useEffect(()=> {
-      auth.onAuthStateChanged(u=>{
-        if(u){
-          setUser({ id:u.uid, name:u.displayName, mobile:u.phoneNumber || "N/A" });
-          localStorage.setItem("club_quiz_user", JSON.stringify({id:u.uid,name:u.displayName}));
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ক্লাব মেম্বারশিপ কুইজ গেম</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --secondary: #2ecc71;
+            --danger: #e74c3c;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
         }
-      });
-    }, []);
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .screen {
+            display: none;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .active {
+            display: block;
+        }
+        
+        h1, h2, h3 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: white;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+        }
+        
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+            display: block;
+            margin: 20px auto;
+        }
+        
+        button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+        }
+        
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        
+        .btn-success {
+            background: var(--secondary);
+        }
+        
+        .btn-success:hover {
+            background: #27ae60;
+        }
+        
+        .question-container {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        
+        .question-text {
+            font-size: 22px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .options-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .option {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            font-size: 18px;
+        }
+        
+        .option:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-3px);
+        }
+        
+        .correct {
+            background: var(--secondary);
+            transform: scale(1.05);
+        }
+        
+        .wrong {
+            background: var(--danger);
+            transform: scale(1.05);
+        }
+        
+        .timer-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .timer {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffeb3b;
+        }
+        
+        .players-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .player-card {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .player-name {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .player-stats {
+            display: flex;
+            justify-content: space-around;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        .leaderboard {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .leaderboard-item:last-child {
+            border-bottom: none;
+        }
+        
+        .rank {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .medal {
+            color: gold;
+            margin-right: 5px;
+        }
+        
+        .progress-bar {
+            height: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .progress {
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.5s;
+        }
+        
+        .welcome-message {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 18px;
+        }
+        
+        @media (max-width: 768px) {
+            .options-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .players-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ওয়েলকাম স্ক্রিন -->
+        <div id="welcome-screen" class="screen active">
+            <h1>ক্লাব মেম্বারশিপ কুইজ গেমে স্বাগতম</h1>
+            <div class="welcome-message">
+                <p>এই গেমে আপনাকে সামাজিক জীবন ও শিক্ষা বিষয়ে ২০টি প্রশ্নের উত্তর দিতে হবে।</p>
+                <p>প্রতিটি প্রশ্নের জন্য ১৫ সেকেন্ড সময় থাকবে।</p>
+                <p>সঠিক উত্তরের জন্য পয়েন্ট পাবেন এবং ভুল উত্তরের জন্য পয়েন্ট কাটা যাবে।</p>
+            </div>
+            <button id="join-btn">মেম্বারশিপ নিন</button>
+        </div>
+        
+        <!-- রেজিস্ট্রেশন স্ক্রিন -->
+        <div id="registration-screen" class="screen">
+            <h2>মেম্বারশিপ ফর্ম</h2>
+            <div class="form-group">
+                <label for="player-name">আপনার নাম</label>
+                <input type="text" id="player-name" placeholder="আপনার পুরো নাম লিখুন">
+            </div>
+            <div class="form-group">
+                <label for="player-email">ইমেইল ঠিকানা</label>
+                <input type="email" id="player-email" placeholder="আপনার ইমেইল ঠিকানা লিখুন">
+            </div>
+            <div class="form-group">
+                <label for="player-phone">ফোন নম্বর</label>
+                <input type="tel" id="player-phone" placeholder="আপনার ফোন নম্বর লিখুন">
+            </div>
+            <button id="register-btn">রেজিস্টার করুন</button>
+        </div>
+        
+        <!-- লগইন স্ক্রিন -->
+        <div id="login-screen" class="screen">
+            <h2>লগইন করুন</h2>
+            <div class="form-group">
+                <label for="login-name">আপনার নাম</label>
+                <input type="text" id="login-name" placeholder="আপনার নাম লিখুন">
+            </div>
+            <button id="login-btn">লগইন করুন</button>
+        </div>
+        
+        <!-- গেম স্ক্রিন -->
+        <div id="game-screen" class="screen">
+            <h2>কুইজ গেম</h2>
+            <div class="player-info">
+                <h3 id="current-player">খেলোয়াড়: </h3>
+                <div class="progress-bar">
+                    <div id="question-progress" class="progress" style="width: 0%"></div>
+                </div>
+                <p>প্রশ্ন: <span id="current-question">0</span>/20</p>
+            </div>
+            
+            <div class="question-container">
+                <div class="question-text" id="question-text">প্রশ্ন লোড হচ্ছে...</div>
+                <div class="options-container" id="options-container">
+                    <!-- অপশনগুলো জাভাস্ক্রিপ্ট দিয়ে যোগ হবে -->
+                </div>
+                <div class="timer-container">
+                    <div class="timer" id="timer">১৫</div>
+                </div>
+            </div>
+            
+            <button id="next-btn" class="btn-success" style="display: none;">পরবর্তী প্রশ্ন</button>
+        </div>
+        
+        <!-- লিডারবোর্ড স্ক্রিন -->
+        <div id="leaderboard-screen" class="screen">
+            <h2>ফাইনাল রেজাল্ট</h2>
+            <div class="leaderboard" id="leaderboard">
+                <!-- লিডারবোর্ড আইটেমগুলো জাভাস্ক্রিপ্ট দিয়ে যোগ হবে -->
+            </div>
+            <button id="play-again-btn">আবার খেলুন</button>
+        </div>
+        
+        <!-- রিয়েল টাইম প্লেয়ার স্ট্যাটাস -->
+        <div id="players-status" class="screen">
+            <h2>খেলোয়াড়দের অবস্থা</h2>
+            <div class="players-container" id="players-container">
+                <!-- খেলোয়াড় কার্ডগুলো জাভাস্ক্রিপ্ট দিয়ে যোগ হবে -->
+            </div>
+        </div>
+    </div>
 
-    // ADD — Google Login
-    const handleGoogleLogin = async ()=>{
-      const result = await auth.signInWithPopup(provider);
-      const u = result.user;
-      
-      const ref = db.collection('players').doc(u.uid);
-      const snap = await ref.get();
-      if(!snap.exists){
-        await ref.set({
-          name: u.displayName,
-          mobile: u.phoneNumber || "N/A",
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          points:0, correct:0, wrong:0, played:false
-        });
-      }
+    <script>
+        // প্রশ্ন ডাটাবেস
+        const questions = [
+            {
+                question: "সামাজিক জীবনে সততা কতটা গুরুত্বপূর্ণ?",
+                options: ["খুব গুরুত্বপূর্ণ", "কিছুটা গুরুত্বপূর্ণ", "গুরুত্বপূর্ণ নয়", "কখনো কখনো গুরুত্বপূর্ণ"],
+                correctAnswer: 0
+            },
+            {
+                question: "শিক্ষা জীবনের লক্ষ্য কী?",
+                options: ["চাকরি পাওয়া", "জ্ঞান অর্জন", "সম্পদ অর্জন", "সামাজিক মর্যাদা"],
+                correctAnswer: 1
+            },
+            {
+                question: "সামাজিক সমস্যা সমাধানের সর্বোত্তম উপায় কী?",
+                options: ["সহযোগিতা", "বিচ্ছিন্নতা", "উপেক্ষা", "সংঘর্ষ"],
+                correctAnswer: 0
+            },
+            {
+                question: "পরিবেশ রক্ষায় আমাদের ভূমিকা কী?",
+                options: ["গাছ লাগানো", "পরিচ্ছন্নতা বজায় রাখা", "প্লাস্টিক ব্যবহার কমানো", "উপরে সবকটি"],
+                correctAnswer: 3
+            },
+            {
+                question: "ভালো বন্ধুত্বের ভিত্তি কী?",
+                options: ["বিশ্বাস", "অর্থ", "সুবিধা", "সামাজিক অবস্থান"],
+                correctAnswer: 0
+            },
+            {
+                question: "সফল জীবনের চাবিকাঠি কী?",
+                options: ["অধ্যবসায়", "ভাগ্য", "পরিবারের সহায়তা", "উপরের সবকটি"],
+                correctAnswer: 3
+            },
+            {
+                question: "সময় ব্যবস্থাপনা কেন গুরুত্বপূর্ণ?",
+                options: ["উত্পাদনশীলতা বাড়ায়", "চাপ কমায়", "লক্ষ্যে পৌঁছাতে সাহায্য করে", "উপরের সবকটি"],
+                correctAnswer: 3
+            },
+            {
+                question: "সামাজিক মাধ্যমের সঠিক ব্যবহার কী?",
+                options: ["জ্ঞান বিনিময়", "সময় নষ্ট", "গুজব ছড়ানো", "অন্যের ব্যক্তিগত জীবন নিয়ে আলোচনা"],
+                correctAnswer: 0
+            },
+            {
+                question: "স্বাস্থ্যকর জীবনের জন্য সবচেয়ে গুরুত্বপূর্ণ কী?",
+                options: ["সুষম খাদ্য", "নিয়মিত ব্যায়াম", "পর্যাপ্ত ঘুম", "উপরের সবকটি"],
+                correctAnswer: 3
+            },
+            {
+                question: "দেশপ্রেম কীভাবে প্রকাশ পায়?",
+                options: ["দেশের উন্নতিতে কাজ করা", "দেশের আইন মেনে চলা", "জাতীয় দিবসগুলো উদযাপন", "উপরের সবকটি"],
+                correctAnswer: 3
+            },
+            {
+                question: "সাহায্য করার মানসিকতা কেন গুরুত্বপূর্ণ?",
+                options: ["সমাজ উন্নত হয়", "আত্মতৃপ্তি আসে", "সম্পর্ক উন্নত হয়", "উপরের সবকটি"],
+                correctAnswer: 3
+            },
+            {
+                question: "ভালো নাগরিকের গুণ কী?",
+                options: ["দায়িত্বশীলতা", "সততা", "পরোপকারিতা", "উপরের সবকটি"],
+                correctAnswer: 3
+            },
+            {
+                question: "জীবনে সাফল্য অর্জনের জন্য কী প্রয়োজন?",
+                options: ["লক্ষ্য নির্ধারণ", "কঠোর পরিশ্রম", "ধৈর্য", "উপরের সবকটি"],
+                correctAnswer: 3
+            },
+            {
+                question: "পরিবারে শান্তি বজায় রাখার উপায় কী?",
+                options: ["পরস্পর সম্মান", "যোগাযোগ", "সহযোগিতা", "উপরের সবকটি"],
+                correctAnswer: 3
+            },
+            {
+                question: "মানসিক স্বাস্থ্য রক্ষায় করণীয় কী?",
+                options: ["নিয়মিত ব্যায়াম", "পর্যাপ্ত বিশ্রাম", "সামাজিক সম্পর্ক বজায় রাখা", "উপরের সবকটি"],
+                correctAnswer: 3
+            },
+            {
+                question: "শিক্ষার প্রকৃত উদ্দেশ্য কী?",
+                options: ["চরিত্র গঠন", "জ্ঞান অর্জন", "দক্ষতা উন্নয়ন", "উপরের সবকটি"],
+                correctAnswer: 3
+            },
+            {
+                question: "সামাজিক উন্নয়নে যুবসমাজের ভূমিকা কী?",
+                options: ["স্বেচ্ছাসেবক হওয়া", "সচেতনতা তৈরি করা", "নেতৃত্ব দেওয়া", "উপরের সবকটি"],
+                correctAnswer: 3
+            },
+            {
+                question: "পরিবেশ দূষণ রোধে আমাদের করণীয় কী?",
+                options: ["পুনর্ব্যবহার", "সরকারের উপর নির্ভরশীল", "উপেক্ষা করা", "অন্যের দোষারোপ"],
+                correctAnswer: 0
+            },
+            {
+                question: "সফল ব্যক্তির প্রধান বৈশিষ্ট্য কী?",
+                options: ["দৃঢ় সংকল্প", "নিয়মানুবর্তিতা", "ইতিবাচক চিন্তা", "উপরের সবকটি"],
+                correctAnswer: 3
+            },
+            {
+                question: "সম্পর্ক রক্ষায় সবচেয়ে গুরুত্বপূর্ণ কী?",
+                options: ["বিশ্বাস", "সম্মান", "যোগাযোগ", "উপরের সবকটি"],
+                correctAnswer: 3
+            }
+        ];
 
-      setUser({ id:u.uid, name:u.displayName });
-    };
+        // গেম ভেরিয়েবল
+        let currentPlayer = null;
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let correctAnswers = 0;
+        let wrongAnswers = 0;
+        let timeLeft = 15;
+        let timerInterval = null;
+        let playerAnswers = [];
+        let players = JSON.parse(localStorage.getItem('quizPlayers')) || [];
 
-    // Existing Mobile Login System (UNCHANGED)
-    const handleLogin = async ({ name, mobile }) => {
-      const pid = mobile.replace(/\D/g,'') || ('m'+Date.now());
-      const ref = db.collection('players').doc(pid);
-      const snap = await ref.get();
-      const payload = { name, mobile, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
-      if (!snap.exists) await ref.set({ ...payload, correct:0, wrong:0, points:0, played:false, avgTime:0, totalAnswered:0 });
-      else await ref.update({ name, mobile });
-      const u = { id: pid, name, mobile };
-      localStorage.setItem('club_quiz_user', JSON.stringify(u));
-      setUser(u);
-    };
+        // DOM এলিমেন্ট
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const registrationScreen = document.getElementById('registration-screen');
+        const loginScreen = document.getElementById('login-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const leaderboardScreen = document.getElementById('leaderboard-screen');
+        const playersStatusScreen = document.getElementById('players-status');
 
-    /* REST OF YOUR ORIGINAL CODE BELOW — UNCHANGED */
+        const joinBtn = document.getElementById('join-btn');
+        const registerBtn = document.getElementById('register-btn');
+        const loginBtn = document.getElementById('login-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const playAgainBtn = document.getElementById('play-again-btn');
+
+        const playerNameInput = document.getElementById('player-name');
+        const loginNameInput = document.getElementById('login-name');
+        const currentPlayerElement = document.getElementById('current-player');
+        const questionTextElement = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const timerElement = document.getElementById('timer');
+        const currentQuestionElement = document.getElementById('current-question');
+        const questionProgress = document.getElementById('question-progress');
+        const leaderboardElement = document.getElementById('leaderboard');
+        const playersContainer = document.getElementById('players-container');
+
+        // ইভেন্ট লিসেনার
+        joinBtn.addEventListener('click', showRegistrationScreen);
+        registerBtn.addEventListener('click', registerPlayer);
+        loginBtn.addEventListener('click', loginPlayer);
+        nextBtn.addEventListener('click', nextQuestion);
+        playAgainBtn.addEventListener('click', resetGame);
+
+        // স্ক্রিন দেখানোর ফাংশন
+        function showScreen(screen) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            screen.classList.add('active');
+        }
+
+        function showRegistrationScreen() {
+            showScreen(registrationScreen);
+        }
+
+        function showLoginScreen() {
+            showScreen(loginScreen);
+        }
+
+        function showGameScreen() {
+            showScreen(gameScreen);
+            loadQuestion();
+            updatePlayersStatus();
+        }
+
+        function showLeaderboardScreen() {
+            showScreen(leaderboardScreen);
+            displayLeaderboard();
+        }
+
+        function showPlayersStatusScreen() {
+            showScreen(playersStatusScreen);
+            updatePlayersStatus();
+        }
+
+        // প্লেয়ার রেজিস্ট্রেশন
+        function registerPlayer() {
+            const name = playerNameInput.value.trim();
+            const email = document.getElementById('player-email').value.trim();
+            const phone = document.getElementById('player-phone').value.trim();
+            
+            if (!name) {
+                alert('দয়া করে আপনার নাম লিখুন');
+                return;
+            }
+            
+            // চেক করুন যদি প্লেয়ার ইতিমধ্যে বিদ্যমান থাকে
+            const existingPlayer = players.find(player => player.name === name);
+            if (existingPlayer) {
+                alert('এই নামে ইতিমধ্যে একজন প্লেয়ার রেজিস্টার্ড আছে। দয়া করে লগইন করুন।');
+                showLoginScreen();
+                return;
+            }
+            
+            // নতুন প্লেয়ার তৈরি করুন
+            currentPlayer = {
+                id: Date.now(),
+                name: name,
+                email: email,
+                phone: phone,
+                score: 0,
+                correctAnswers: 0,
+                wrongAnswers: 0,
+                timeTaken: [],
+                hasPlayed: false
+            };
+            
+            players.push(currentPlayer);
+            localStorage.setItem('quizPlayers', JSON.stringify(players));
+            
+            alert('সফলভাবে রেজিস্টার্ড হয়েছে! এখন আপনি গেম খেলতে পারেন।');
+            showGameScreen();
+        }
+
+        // প্লেয়ার লগইন
+        function loginPlayer() {
+            const name = loginNameInput.value.trim();
+            
+            if (!name) {
+                alert('দয়া করে আপনার নাম লিখুন');
+                return;
+            }
+            
+            // প্লেয়ার খুঁজুন
+            const player = players.find(p => p.name === name);
+            
+            if (!player) {
+                alert('এই নামে কোনো প্লেয়ার পাওয়া যায়নি। দয়া করে রেজিস্টার করুন।');
+                showRegistrationScreen();
+                return;
+            }
+            
+            if (player.hasPlayed) {
+                alert('আপনি ইতিমধ্যে এই গেমটি খেলেছেন। প্রতিটি প্লেয়ার শুধুমাত্র একবার খেলতে পারবে।');
+                showLeaderboardScreen();
+                return;
+            }
+            
+            currentPlayer = player;
+            showGameScreen();
+        }
+
+        // প্রশ্ন লোড করা
+        function loadQuestion() {
+            if (currentQuestionIndex >= questions.length) {
+                endGame();
+                return;
+            }
+            
+            const question = questions[currentQuestionIndex];
+            questionTextElement.textContent = question.question;
+            optionsContainer.innerHTML = '';
+            
+            question.options.forEach((option, index) => {
+                const optionElement = document.createElement('div');
+                optionElement.className = 'option';
+                optionElement.textContent = option;
+                optionElement.dataset.index = index;
+                optionElement.addEventListener('click', selectOption);
+                optionsContainer.appendChild(optionElement);
+            });
+            
+            currentQuestionElement.textContent = currentQuestionIndex + 1;
+            questionProgress.style.width = `${((currentQuestionIndex + 1) / questions.length) * 100}%`;
+            
+            nextBtn.style.display = 'none';
+            startTimer();
+        }
+
+        // টাইমার শুরু করা
+        function startTimer() {
+            clearInterval(timerInterval);
+            timeLeft = 15;
+            timerElement.textContent = timeLeft;
+            timerElement.style.color = '#ffeb3b';
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerElement.textContent = timeLeft;
+                
+                if (timeLeft <= 5) {
+                    timerElement.style.color = 'red';
+                }
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    handleTimeUp();
+                }
+            }, 1000);
+        }
+
+        // সময় শেষ হওয়ার হ্যান্ডলার
+        function handleTimeUp() {
+            playerAnswers.push({
+                questionIndex: currentQuestionIndex,
+                selectedAnswer: -1,
+                isCorrect: false,
+                timeTaken: 15
+            });
+            
+            wrongAnswers++;
+            currentPlayer.wrongAnswers++;
+            
+            optionsContainer.querySelectorAll('.option').forEach(option => {
+                option.style.pointerEvents = 'none';
+                if (parseInt(option.dataset.index) === questions[currentQuestionIndex].correctAnswer) {
+                    option.classList.add('correct');
+                }
+            });
+            
+            nextBtn.style.display = 'block';
+        }
+
+        // অপশন সিলেক্ট করা
+        function selectOption(e) {
+            clearInterval(timerInterval);
+            const selectedOption = e.target;
+            const selectedIndex = parseInt(selectedOption.dataset.index);
+            const correctIndex = questions[currentQuestionIndex].correctAnswer;
+            
+            const timeTaken = 15 - timeLeft;
+            playerAnswers.push({
+                questionIndex: currentQuestionIndex,
+                selectedAnswer: selectedIndex,
+                isCorrect: selectedIndex === correctIndex,
+                timeTaken: timeTaken
+            });
+            
+            // সব অপশন নিষ্ক্রিয় করুন
+            optionsContainer.querySelectorAll('.option').forEach(option => {
+                option.style.pointerEvents = 'none';
+                
+                if (parseInt(option.dataset.index) === correctIndex) {
+                    option.classList.add('correct');
+                } else if (parseInt(option.dataset.index) === selectedIndex && selectedIndex !== correctIndex) {
+                    option.classList.add('wrong');
+                }
+            });
+            
+            // স্কোর আপডেট করুন
+            if (selectedIndex === correctIndex) {
+                score += 10;
+                correctAnswers++;
+                currentPlayer.correctAnswers++;
+            } else {
+                score -= 5;
+                wrongAnswers++;
+                currentPlayer.wrongAnswers++;
+            }
+            
+            currentPlayer.score = score;
+            currentPlayer.timeTaken.push(timeTaken);
+            
+            nextBtn.style.display = 'block';
+            updatePlayersStatus();
+        }
+
+        // পরবর্তী প্রশ্ন
+        function nextQuestion() {
+            currentQuestionIndex++;
+            loadQuestion();
+        }
+
+        // গেম শেষ
+        function endGame() {
+            currentPlayer.hasPlayed = true;
+            localStorage.setItem('quizPlayers', JSON.stringify(players));
+            showLeaderboardScreen();
+        }
+
+        // লিডারবোর্ড প্রদর্শন
+        function displayLeaderboard() {
+            leaderboardElement.innerHTML = '';
+            
+            // স্কোর অনুসারে প্লেয়ারদের সাজান
+            const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+            
+            sortedPlayers.forEach((player, index) => {
+                const leaderboardItem = document.createElement('div');
+                leaderboardItem.className = 'leaderboard-item';
+                
+                let medal = '';
+                if (index === 0) medal = '<span class="medal">🥇</span>';
+                else if (index === 1) medal = '<span class="medal">🥈</span>';
+                else if (index === 2) medal = '<span class="medal">🥉</span>';
+                
+                leaderboardItem.innerHTML = `
+                    <div>
+                        <span class="rank">${medal} ${index + 1}. ${player.name}</span>
+                    </div>
+                    <div>
+                        <span>স্কোর: ${player.score}</span> | 
+                        <span>সঠিক: ${player.correctAnswers}</span> | 
+                        <span>ভুল: ${player.wrongAnswers}</span>
+                    </div>
+                `;
+                
+                leaderboardElement.appendChild(leaderboardItem);
+            });
+        }
+
+        // প্লেয়ার স্ট্যাটাস আপডেট
+        function updatePlayersStatus() {
+            playersContainer.innerHTML = '';
+            
+            players.forEach(player => {
+                const playerCard = document.createElement('div');
+                playerCard.className = 'player-card';
+                
+                playerCard.innerHTML = `
+                    <div class="player-name">${player.name}</div>
+                    <div class="player-stats">
+                        <div class="stat">
+                            <div class="stat-value">${player.score}</div>
+                            <div>স্কোর</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${player.correctAnswers}</div>
+                            <div>সঠিক</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${player.wrongAnswers}</div>
+                            <div>ভুল</div>
+                        </div>
+                    </div>
+                `;
+                
+                playersContainer.appendChild(playerCard);
+            });
+        }
+
+        // গেম রিসেট
+        function resetGame() {
+            currentPlayer = null;
+            currentQuestionIndex = 0;
+            score = 0;
+            correctAnswers = 0;
+            wrongAnswers = 0;
+            playerAnswers = [];
+            
+            showWelcomeScreen();
+        }
+
+        // ওয়েলকাম স্ক্রিন দেখান
+        function showWelcomeScreen() {
+            showScreen(welcomeScreen);
+        }
+
+        // প্রারম্ভিক সেটআপ
+        function init() {
+            currentPlayerElement.textContent = `খেলোয়াড়: ${currentPlayer ? currentPlayer.name : ''}`;
+            updatePlayersStatus();
+        }
+
+        // DOM লোড হলে ইনিশিয়ালাইজেশন
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
