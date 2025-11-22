@@ -1,211 +1,425 @@
-/* Club Quiz Engine — Single-file React + Firebase (modular) app Features implemented:
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Club Quiz Engine — ক্লাব কুইজ</title>
 
-Simple member signup/login by Name + Mobile (stored in Firestore + localStorage session)
+  <!-- Tailwind Play CDN (quick theme) -->
+  <script src="https://cdn.tailwindcss.com"></script>
 
-Real-time scoreboard and per-player stats using Cloud Firestore listeners
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;700&display=swap" rel="stylesheet">
 
-20 Bengali social-life education questions (example set included)
+  <style>
+    :root { --accent: #7c3aed; --muted:#6b7280; }
+    body { font-family: 'Noto Sans Bengali', system-ui, -apple-system, sans-serif; }
+    .btn { @apply px-4 py-2 rounded-full font-semibold shadow-sm; }
+    .glass { background: rgba(255,255,255,0.7); backdrop-filter: blur(6px); }
+    /* big answer blocks */
+    .answer-btn { transition: transform .15s, box-shadow .15s; }
+    .answer-btn:active { transform: scale(.99); }
+    /* highlight styles for correct/wrong */
+    .is-correct { box-shadow: 0 6px 25px rgba(34,197,94,.14); border: 2px solid #22c55e; }
+    .is-wrong { box-shadow: 0 6px 25px rgba(239,68,68,.12); border: 2px solid #ef4444; opacity: .95; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-indigo-50 min-h-screen">
+  <div id="root" class="min-h-screen"></div>
 
-15 second timer per question, auto-skip on timeout
+  <!-- React & ReactDOM (UMD) -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 
-Shows correct (green) / wrong (red) highlight, big UI
+  <!-- Babel for JSX in browser (dev) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-Each player can play once (plays set in Firestore)
+  <!-- Firebase compat (easier to use inside a single HTML file) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
-Final results dashboard with 1st/2nd/3rd and points
+  <!-- App code -->
+  <script type="text/babel">
+  const { useState, useEffect, useRef } = React;
 
+  /***** CONFIG: REPLACE with your Firebase config (from Firebase console) *****/
+  const firebaseConfig = {
+    apiKey: "REPLACE_API_KEY",
+    authDomain: "REPLACE_PROJECT.firebaseapp.com",
+    projectId: "REPLACE_PROJECT",
+    storageBucket: "REPLACE_PROJECT.appspot.com",
+    messagingSenderId: "SENDER_ID",
+    appId: "APP_ID",
+  };
+  /***************************************************************************/
 
-How to use:
-
-1. Create a Firebase project, enable Firestore (in Native mode) and create a web app.
-
-
-2. Install dependencies: npm install firebase react-router-dom (Tailwind assumed already configured)
-
-
-3. Replace the firebaseConfig object below with your project's config.
-
-
-4. Deploy: can host on GitHub Pages / Vercel / Firebase Hosting.
-
-
-
-Notes & security:
-
-This example uses Firestore for realtime data and is modular (firebase v9+).
-
-For production, add Firestore security rules to prevent tampering, and use proper auth (phone/email) if needed.
-
-
-*/
-
-import React, { useEffect, useState, useRef } from "react"; import { initializeApp } from "firebase/app"; import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, updateDoc, addDoc, query, orderBy, where, serverTimestamp, getDocs, } from "firebase/firestore";
-
-// --- REPLACE with your Firebase config --- const firebaseConfig = { apiKey: "REPLACE_API_KEY", authDomain: "REPLACE_PROJECT.firebaseapp.com", projectId: "REPLACE_PROJECT", storageBucket: "REPLACE_PROJECT.appspot.com", messagingSenderId: "SENDER_ID", appId: "APP_ID", }; // ----------------------------------------
-
-const app = initializeApp(firebaseConfig); const db = getFirestore(app);
-
-// Sample 20 Bengali questions (social life / education) — short & simple const SAMPLE_QUESTIONS = [ { id: 1, q: "সাহায্য প্রয়োজন হলে প্রথমে কার কাছে জানাবেন?", options: ["পরিবার", "অজানা লোক", "নোংরা রাস্তায়", "কেউ না"], a: 0, }, { id: 2, q: "নিয়মকানুন মানা কেন জরুরি?", options: ["শান্তির জন্য", "মজা করার জন্য", "বাজে লাগে", "অপরাধের জন্য"], a: 0, }, { id: 3, q: "স্কুলে সময়মতো যাওয়ার উপকার কী?", options: ["শিক্ষা বৃদ্ধি", "ভুলে যাওয়া", "দেড়ি করে যাওয়া", "কিছু না"], a: 0, }, { id: 4, q: "পরিবেশ রক্ষা করতে কোনটা করতে হবে?", options: ["কচुरा ফেলব না", "সব কচুরা সেখানে ফেলে দেব", "ধোঁয়া বাড়াবো", "প্লাস্টিক পুড়াবো"], a: 0, }, { id: 5, q: "টাকা সঞ্চয় করার সবচেয়ে সহজ উপায়?", options: ["বাজেট বানানো", "কাজেই ব্যয় করা", "ঋণ নেওয়া", "উড়িয়ে খরচ"], a: 0, }, { id: 6, q: "সোশ্যাল মিডিয়ায় ভুল তথ্য দেখলে?", options: ["তথ্য যাচাই করব", "শেয়ার করে দিব", "মজা করা", "আননায়ক বলব"], a: 0, }, { id: 7, q: "টাকার চেয়ে গুরুত্বপূর্ণ কি?", options: ["স্বাস্থ্য ও শিক্ষা", "কেবল টাকা", "বিজনেস নয়", "সময় নয়"], a: 0, }, { id: 8, q: "জ্বর হলে প্রথমে কি করবেন?", options: ["ডাক্তারের পরামর্শ নেব", "কৌতুক দেখাবো", "দৌড়াতে যাবো", "কেউ না বলব"], a: 0, }, { id: 9, q: "পরিকল্পনা ছাড়া বড় কাজ করলে কি হয়?", options: ["ভাঙন হতে পারে", "সব ঠিক থাকে", "আরও সহজ হয়", "সবাই খুশি হয়"], a: 0, }, { id: 10, q: "পরিষ্কার পরিচ্ছন্নতার গুরুত্ব?", options: ["রোগ কমে", "কিছু না", "বেসিক নয়", "অপ্রয়োজনীয়"], a: 0, }, { id: 11, q: "পরিবহন ব্যবহার করলে কি করব?", options: ["সঠিক টিকিট নেব", "চুরি করব", "জায়গায় বসব না", "দুর্ব্যবহার করব"], a: 0, }, { id: 12, q: "কেন্দ্রিকভাবে সিদ্ধান্ত নিলে ভালো কেন?", options: ["সবাই সঙ্গেই সিদ্ধান্ত হয়", "আলাদা না হওয়া", "ভুল সিদ্ধান্ত হবে", "কিছু না"], a: 0, }, { id: 13, q: "কখন ন্যায্যতা রাখা জরুরি?", options: ["সব সময়", "কখনো না", "কেবল উৎসবে", "শুধু বড়দের জন্য"], a: 0, }, { id: 14, q: "অন্যের জিনিস চুরি করলে?", options: ["সাজা মেলে", "কোনো সমস্যা নয়", "সব ঠিক আছে", "ভাল হয়"], a: 0, }, { id: 15, q: "অন্যকে সম্মান দেয়া কেন?", options: ["সম্প্রীতি বাড়ে", "বেকার হয়", "অকার্যকর", "কঠিন হয়"], a: 0, }, { id: 16, q: "কোন পরিস্থিতিতে সহায়তা করা উচিত?", options: ["সঙ্কটের সময়", "কখনো না", "শুধু বন্ধুকে", "শুধু পরিবারকে"], a: 0, }, { id: 17, q: "মনোযোগ বাড়ানোর সহজ উপায়?", options: ["পর্যাপ্ত ঘুম", "অফিসে কাজ না করা", "অতিরিক্ত খাওয়া", "খেলা না করা"], a: 0, }, { id: 18, q: "কিভাবে তথ্য শেয়ার করা উচিত?", options: ["সঠিকভাবে যাচাই করে", "বিনা যাচাইে শেয়ার", "ভুল তথ্য ছড়ানো", "কাওকে বলব না"], a: 0, }, { id: 19, q: "সমাজে শান্তি রক্ষার পথ?", options: ["সংলাপ ও শ্রদ্ধা", "হিংসা", "ভাগাভাগি", "চুপ করা"], a: 0, }, { id: 20, q: "টিমে কাজ করার প্রধান সুবিধা?", options: ["বিভাগভাগ করে কাজ সহজ হয়", "কোনো সুবিধা নেই", "কোনো না", "সবাই আলাদা কাজ করবে"], a: 0, }, ];
-
-function useTimer(initial = 15) { const [time, setTime] = useState(initial); const timerRef = useRef(null);
-
-useEffect(() => { return () => clearInterval(timerRef.current); }, []);
-
-const start = (onTick) => { clearInterval(timerRef.current); setTime(initial); timerRef.current = setInterval(() => { setTime((t) => { const nt = t - 1; if (onTick) onTick(nt); if (nt <= 0) clearInterval(timerRef.current); return nt; }); }, 1000); };
-
-const stop = () => { clearInterval(timerRef.current); };
-
-return { time, start, stop, setTime }; }
-
-export default function ClubQuizEngine() { const [user, setUser] = useState(null); const [membersLoaded, setMembersLoaded] = useState(false); const [players, setPlayers] = useState([]); const [currentQIndex, setCurrentQIndex] = useState(0); const [localAnswered, setLocalAnswered] = useState(false); const [highlight, setHighlight] = useState(null); // 'correct'|'wrong'|null const [gameState, setGameState] = useState("idle"); // idle|running|finished const { time, start, stop, setTime } = useTimer(15); const [questions] = useState(SAMPLE_QUESTIONS);
-
-// mount: check local session useEffect(() => { const s = localStorage.getItem("club_quiz_user"); if (s) setUser(JSON.parse(s)); }, []);
-
-// realtime players listener useEffect(() => { const col = collection(db, "players"); const q = query(col, orderBy("createdAt", "asc")); const unsub = onSnapshot(q, (snap) => { const arr = snap.docs.map((d) => ({ id: d.id, ...d.data() })); setPlayers(arr); setMembersLoaded(true); }); return () => unsub(); }, []);
-
-// start game (only admin should trigger in production) — here any user can start const startGame = async () => { // reset players stats const col = collection(db, "players"); const ps = await getDocs(col); for (const p of ps.docs) { await updateDoc(p.ref, { correct: 0, wrong: 0, points: 0, played: false, avgTime: 0, }); } // create a game doc const gameDoc = doc(db, "games", "current"); await setDoc(gameDoc, { state: "running", startedAt: serverTimestamp(), questionIndex: 0, }); setGameState("running"); setCurrentQIndex(0); };
-
-// player signup/login (simple) const handleLogin = async ({ name, mobile }) => { // create or update player doc with mobile as unique id const pid = mobile.replace(/\D/g, ""); const ref = doc(db, "players", pid); const snap = await getDoc(ref); const payload = { name, mobile, createdAt: serverTimestamp(), }; if (!snap.exists()) { await setDoc(ref, { ...payload, correct: 0, wrong: 0, points: 0, played: false, avgTime: 0 }); } else { await updateDoc(ref, { name, mobile }); } const u = { id: pid, name, mobile }; localStorage.setItem("club_quiz_user", JSON.stringify(u)); setUser(u); };
-
-// play: load next question for this user useEffect(() => { if (!user) return; // check if already played const checkPlayed = async () => { const ref = doc(db, "players", user.id); const snap = await getDoc(ref); if (snap.exists()) { const data = snap.data(); if (data.played) { setGameState("finished"); } } }; checkPlayed(); }, [user]);
-
-// handle answering const handleAnswer = async (optionIndex) => { if (!user) return alert("প্রথমে লগইন করুন"); if (localAnswered) return; setLocalAnswered(true); stop(); const q = questions[currentQIndex]; const correct = q.a === optionIndex; setHighlight(correct ? "correct" : "wrong");
-
-// compute points: correct => +10, faster gives bonus (time left)
-const base = correct ? 10 : 0;
-const bonus = correct ? time : 0; // remaining seconds as bonus
-const points = base + bonus;
-
-// update player doc
-const ref = doc(db, "players", user.id);
-const snap = await getDoc(ref);
-if (snap.exists()) {
-  const data = snap.data();
-  const newCorrect = (data.correct || 0) + (correct ? 1 : 0);
-  const newWrong = (data.wrong || 0) + (correct ? 0 : 1);
-  const totalAnswered = (data.totalAnswered || 0) + 1;
-  const newAvgTime = ((data.avgTime || 0) * (totalAnswered - 1) + (15 - time)) / totalAnswered;
-  await updateDoc(ref, {
-    correct: newCorrect,
-    wrong: newWrong,
-    points: (data.points || 0) + points,
-    totalAnswered,
-    avgTime: newAvgTime,
-  });
-}
-
-// mark answered locally and after 2s move to next question
-setTimeout(() => {
-  setHighlight(null);
-  setLocalAnswered(false);
-  // go to next question
-  if (currentQIndex + 1 < questions.length) {
-    setCurrentQIndex((i) => i + 1);
-    setTime(15);
-    start();
-  } else {
-    // finished: mark player as played
-    finishPlayer();
+  // Init Firebase (compat)
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
   }
-}, 1500);
+  const db = firebase.firestore();
 
-};
+  // Sample 20 Bengali questions
+  const SAMPLE_QUESTIONS = [
+    { id:1, q:"সাহায্য প্রয়োজন হলে প্রথমে কার কাছে জানাবেন?", options:["পরিবার","অজানা লোক","নোংরা রাস্তায়","কেউ না"], a:0 },
+    { id:2, q:"নিয়মকানুন মানা কেন জরুরি?", options:["শান্তির জন্য","মজা করার জন্য","বাজে লাগে","অপরাধের জন্য"], a:0 },
+    { id:3, q:"স্কুলে সময়মতো যাওয়ার উপকার কী?", options:["শিক্ষা বৃদ্ধি","ভুলে যাওয়া","দেড়ি করে যাওয়া","কিছু না"], a:0 },
+    { id:4, q:"পরিবেশ রক্ষা করতে কোনটা করতে হবে?", options:["কচुरा ফেলব না","সব কচুরা সেখানে ফেলে দেব","ধোঁয়া বাড়াবো","প্লাস্টিক পুড়াবো"], a:0 },
+    { id:5, q:"টাকা সঞ্চয় করার সবচেয়ে সহজ উপায়?", options:["বাজেট বানানো","কাজেই ব্যয় করা","ঋণ নেওয়া","উড়িয়ে খরচ"], a:0 },
+    { id:6, q:"সোশ্যাল মিডিয়ায় ভুল তথ্য দেখলে?", options:["তথ্য যাচাই করব","শেয়ার করে দিব","মজা করা","আননায়ক বলব"], a:0 },
+    { id:7, q:"টাকার চেয়ে গুরুত্বপূর্ণ কি?", options:["স্বাস্থ্য ও শিক্ষা","কেবল টাকা","বিজনেস নয়","সময় নয়"], a:0 },
+    { id:8, q:"জ্বর হলে প্রথমে কি করবেন?", options:["ডাক্তারের পরামর্শ নেব","কৌতুক দেখাবো","দৌড়াতে যাবো","কেউ না বলব"], a:0 },
+    { id:9, q:"পরিকল্পনা ছাড়া বড় কাজ করলে কি হয়?", options:["ভাঙন হতে পারে","সব ঠিক থাকে","আরও সহজ হয়","সবাই খুশি হয়"], a:0 },
+    { id:10, q:"পরিষ্কার পরিচ্ছন্নতার গুরুত্ব?", options:["রোগ কমে","কিছু না","বেসিক নয়","অপ্রয়োজনীয়"], a:0 },
+    { id:11, q:"পরিবহন ব্যবহার করলে কি করব?", options:["সঠিক টিকিট নেব","চুরি করব","জায়গায় বসব না","দুর্ব্যবহার করব"], a:0 },
+    { id:12, q:"কেন্দ্রিকভাবে সিদ্ধান্ত নিলে ভালো কেন?", options:["সবাই সঙ্গেই সিদ্ধান্ত হয়","আলাদা না হওয়া","ভুল সিদ্ধান্ত হবে","কিছু না"], a:0 },
+    { id:13, q:"কখন ন্যায্যতা রাখা জরুরি?", options:["সব সময়","কখনো না","কেবল উৎসবে","শুধু বড়দের জন্য"], a:0 },
+    { id:14, q:"অন্যের জিনিস চুরি করলে?", options:["সাজা মেলে","কোনো সমস্যা নয়","সব ঠিক আছে","ভাল হয়"], a:0 },
+    { id:15, q:"অন্যকে সম্মান দেয়া কেন?", options:["সম্প্রীতি বাড়ে","বেকার হয়","অকার্যকর","কঠিন হয়"], a:0 },
+    { id:16, q:"কোন পরিস্থিতিতে সহায়তা করা উচিত?", options:["সঙ্কটের সময়","কখনো না","শুধু বন্ধুকে","শুধু পরিবারকে"], a:0 },
+    { id:17, q:"মনোযোগ বাড়ানোর সহজ উপায়?", options:["পর্যাপ্ত ঘুম","অফিসে কাজ না করা","অতিরিক্ত খাওয়া","খেলা না করা"], a:0 },
+    { id:18, q:"কিভাবে তথ্য শেয়ার করা উচিত?", options:["সঠিকভাবে যাচাই করে","বিনা যাচাইে শেয়ার","ভুল তথ্য ছড়ানো","কাওকে বলব না"], a:0 },
+    { id:19, q:"সমাজে শান্তি রক্ষার পথ?", options:["সংলাপ ও শ্রদ্ধা","হিংসা","ভাগাভাগি","চুপ করা"], a:0 },
+    { id:20, q:"টিমে কাজ করার প্রধান সুবিধা?", options:["বিভাগভাগ করে কাজ সহজ হয়","কোনো সুবিধা নেই","কোনো না","সবাই আলাদা কাজ করবে"], a:0 },
+  ];
 
-const finishPlayer = async () => { if (!user) return; const ref = doc(db, "players", user.id); const snap = await getDoc(ref); if (snap.exists()) { await updateDoc(ref, { played: true, finishedAt: serverTimestamp() }); } setGameState("finished"); };
+  // Timer hook
+  function useTimer(initial=15){
+    const [time, setTime] = useState(initial);
+    const ref = useRef(null);
+    useEffect(()=> () => clearInterval(ref.current), []);
+    const start = (onTick) => {
+      clearInterval(ref.current);
+      setTime(initial);
+      ref.current = setInterval(()=> {
+        setTime(t => {
+          const nt = t-1;
+          if (onTick) onTick(nt);
+          if (nt<=0) clearInterval(ref.current);
+          return nt;
+        })
+      }, 1000);
+    }
+    const stop = ()=> clearInterval(ref.current);
+    return { time, start, stop, setTime };
+  }
 
-// auto-skip on timeout useEffect(() => { if (!user) return; if (time <= 0 && gameState === "running") { // count as wrong / timeout handleAnswer(-1); // -1 is always wrong } }, [time]);
+  // Main App
+  function App(){
+    const [user, setUser] = useState(null);
+    const [players, setPlayers] = useState([]);
+    const [gameState, setGameState] = useState('idle'); // idle | running | finished
+    const [currentQIndex, setCurrentQIndex] = useState(0);
+    const [localAnswered, setLocalAnswered] = useState(false);
+    const [highlight, setHighlight] = useState(null); // 'correct'|'wrong'|null
+    const [questions] = useState(SAMPLE_QUESTIONS);
+    const { time, start, stop, setTime } = useTimer(15);
 
-// start timer when question index changes useEffect(() => { if (!user) return; if (gameState !== "running") return; setLocalAnswered(false); setHighlight(null); setTime(15); start(); }, [currentQIndex, gameState]);
+    // load session
+    useEffect(()=> {
+      const s = localStorage.getItem('club_quiz_user');
+      if (s) setUser(JSON.parse(s));
+    }, []);
 
-// helper: leaderboard const topPlayers = [...players].sort((a, b) => (b.points || 0) - (a.points || 0)).slice(0, 10);
+    // realtime players
+    useEffect(()=> {
+      const q = db.collection('players').orderBy('createdAt','asc');
+      const unsub = q.onSnapshot(snap => {
+        const arr = [];
+        snap.forEach(d => arr.push({ id:d.id, ...d.data() }));
+        setPlayers(arr);
+      });
+      return ()=> unsub();
+    }, []);
 
-// UI components if (!user) return ( <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6"> <div className="w-full max-w-md bg-white p-6 rounded-2xl shadow"> <h2 className="text-2xl font-bold mb-4">ক্লাব মেম্বার লগইন / সাইনআপ</h2> <LoginForm onSubmit={handleLogin} /> <div className="mt-4"> <p className="text-sm text-gray-500">মেম্বার হলে নাম ও মোবাইল দিয়ে লগইন করুন।</p> </div> </div> </div> );
+    // Check if user already played
+    useEffect(()=>{
+      if (!user) return;
+      db.collection('players').doc(user.id).get().then(snap => {
+        if (snap.exists && snap.data().played) setGameState('finished');
+      });
+    }, [user]);
 
-if (gameState === "idle") return ( <div className="min-h-screen p-6 bg-gradient-to-b from-indigo-50 to-white"> <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6"> <div className="md:col-span-2 bg-white p-6 rounded-2xl shadow"> <h1 className="text-2xl font-bold">স্বাগতম, {user.name}</h1> <p className="mt-2 text-sm text-gray-600">প্রতিটি প্রশ্নের জন্য 15 সেকেন্ড আছে। প্রতিটি সদস্য একবার খেলবে।</p> <div className="mt-6"> <button className="px-4 py-2 rounded-full bg-indigo-600 text-white" onClick={startGame}> গেম শুরু করুন </button> </div> </div>
+    // start game (anyone can trigger in this demo)
+    const startGame = async () => {
+      // reset all players (simple approach)
+      const ps = await db.collection('players').get();
+      const batch = db.batch ? db.batch() : null;
+      ps.forEach(docSnap => {
+        if (batch) batch.update(docSnap.ref, { correct:0, wrong:0, points:0, played:false, avgTime:0, totalAnswered:0 });
+        else docSnap.ref.update({ correct:0, wrong:0, points:0, played:false, avgTime:0, totalAnswered:0 });
+      });
+      if (batch) await batch.commit();
+      await db.collection('games').doc('current').set({ state:'running', startedAt: firebase.firestore.FieldValue.serverTimestamp(), questionIndex:0 });
+      setGameState('running'); setCurrentQIndex(0);
+    };
 
-<div className="bg-white p-6 rounded-2xl shadow">
-        <h3 className="font-semibold">লাইভ স্কোরবোর্ড</h3>
-        <ol className="mt-3 space-y-2">
-          {topPlayers.map((p, idx) => (
-            <li key={p.id} className="flex justify-between">
-              <span>{idx + 1}. {p.name}</span>
-              <span className="font-semibold">{p.points || 0} পয়েন্ট</span>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </div>
-  </div>
-);
+    // login/signup
+    const handleLogin = async ({ name, mobile }) => {
+      const pid = mobile.replace(/\D/g,'') || ('m'+Date.now());
+      const ref = db.collection('players').doc(pid);
+      const snap = await ref.get();
+      const payload = { name, mobile, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+      if (!snap.exists) await ref.set({ ...payload, correct:0, wrong:0, points:0, played:false, avgTime:0, totalAnswered:0 });
+      else await ref.update({ name, mobile });
+      const u = { id: pid, name, mobile };
+      localStorage.setItem('club_quiz_user', JSON.stringify(u));
+      setUser(u);
+    };
 
-if (gameState === "running") { const q = questions[currentQIndex]; return ( <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-yellow-50 to-white"> <div className="w-full max-w-3xl bg-white p-6 rounded-2xl shadow"> <div className="flex justify-between items-center"> <h2 className="text-xl font-bold">প্রশ্ন {currentQIndex + 1} / {questions.length}</h2> <div className="text-sm">টাইম: <span className="font-mono">{time}s</span></div> </div>
+    // answering
+    const handleAnswer = async (optionIndex) => {
+      if (!user) return alert('প্রথমে লগইন করুন');
+      if (localAnswered) return;
+      setLocalAnswered(true);
+      stop();
+      const q = questions[currentQIndex];
+      const correct = q.a === optionIndex;
+      setHighlight(correct ? 'correct' : 'wrong');
 
-<div className="mt-4">
-        <div className="text-2xl font-semibold">{q.q}</div>
-        <div className="mt-6 grid grid-cols-1 gap-4">
-          {q.options.map((opt, i) => {
-            const isCorrect = highlight === "correct" && q.a === i;
-            const isWrong = highlight === "wrong" && q.a !== i && localAnswered && i === i;
-            const btnClass = `p-4 rounded-xl text-lg border transition transform` +
-              (highlight ? (q.a === i ? " border-green-500 scale-105" : (localAnswered ? " border-red-400 opacity-60" : " border-gray-200")) : " border-gray-200");
-            return (
-              <button
-                key={i}
-                className={btnClass}
-                onClick={() => handleAnswer(i)}
-                disabled={localAnswered}
-              >
-                {opt}
-              </button>
-            );
-          })}
+      const base = correct ? 10 : 0;
+      const bonus = correct ? time : 0;
+      const points = base + bonus;
+
+      const ref = db.collection('players').doc(user.id);
+      const snap = await ref.get();
+      if (snap.exists){
+        const data = snap.data();
+        const newCorrect = (data.correct||0) + (correct?1:0);
+        const newWrong = (data.wrong||0) + (correct?0:1);
+        const totalAnswered = (data.totalAnswered||0) + 1;
+        const newAvgTime = ((data.avgTime || 0) * (totalAnswered - 1) + (15 - time)) / totalAnswered;
+        await ref.update({
+          correct: newCorrect,
+          wrong: newWrong,
+          points: (data.points||0) + points,
+          totalAnswered,
+          avgTime: newAvgTime
+        });
+      }
+
+      setTimeout(()=>{
+        setHighlight(null);
+        setLocalAnswered(false);
+        if (currentQIndex + 1 < questions.length) {
+          setCurrentQIndex(i => i+1);
+          setTime(15);
+          start();
+        } else {
+          finishPlayer();
+        }
+      }, 1200);
+    };
+
+    const finishPlayer = async () => {
+      if (!user) return;
+      await db.collection('players').doc(user.id).update({ played:true, finishedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      setGameState('finished');
+    };
+
+    // timeout auto-skip
+    useEffect(()=> {
+      if (!user) return;
+      if (time <= 0 && gameState === 'running') {
+        handleAnswer(-1);
+      }
+    }, [time]);
+
+    // start timer when question changes
+    useEffect(()=> {
+      if (!user) return;
+      if (gameState !== 'running') return;
+      setLocalAnswered(false); setHighlight(null); setTime(15); start();
+    }, [currentQIndex, gameState]);
+
+    // helpers
+    const topPlayers = [...players].sort((a,b) => (b.points||0) - (a.points||0)).slice(0,10);
+
+    // UI
+    if (!user) return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="w-full max-w-lg glass p-8 rounded-2xl shadow-lg">
+          <h2 className="text-2xl font-bold mb-2" style={{color:'var(--accent)'}}>ক্লাব মেম্বার লগইন / সাইনআপ</h2>
+          <p className="text-sm text-gray-600 mb-4">নাম ও মোবাইল দিয়ে সহজে সাইনআপ করুন — একবার এক খেলোয়াড় খেলবে।</p>
+          <LoginForm onSubmit={handleLogin} />
         </div>
       </div>
+    );
 
-      <div className="mt-6">
-        <h3 className="font-semibold">তোমার স্ট্যাটস</h3>
-        <PlayerCard player={players.find((p) => p.id === user.id)} />
-      </div>
-
-      <div className="mt-6">
-        <h3 className="font-semibold">লাইভ টপ 5</h3>
-        <ol className="mt-2">
-          {topPlayers.slice(0,5).map((p, idx) => (
-            <li key={p.id} className="flex justify-between py-1">
-              <span>{idx+1}. {p.name}</span>
-              <span>{p.points || 0}</span>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </div>
-  </div>
-);
-
-}
-
-// finished return ( <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6"> <div className="w-full max-w-3xl bg-white p-6 rounded-2xl shadow"> <h2 className="text-2xl font-bold">ধন্যবাদ, {user.name}!</h2> <p className="mt-2">আপনি খেলা সম্পন্ন করেছেন। নীচে ফাইনাল রেজাল্ট:</p> <div className="mt-4"> <h3 className="font-semibold">Top 3</h3> <ol className="mt-2"> {topPlayers.slice(0,3).map((p, idx) => ( <li key={p.id} className="flex justify-between py-1"> <span>{idx+1}. {p.name}</span> <span>{p.points || 0} পয়েন্ট</span> </li> ))} </ol> </div>
-
-<div className="mt-6">
-      <h3 className="font-semibold">সকল মেম্বারের ফল</h3>
-      <div className="mt-2">
-        {players.map((p) => (
-          <div key={p.id} className="flex justify-between py-2 border-b">
-            <div>
-              <div className="font-medium">{p.name}</div>
-              <div className="text-sm text-gray-500">S: {p.correct || 0} W: {p.wrong || 0} AvgT: {Math.round(p.avgTime || 0)}s</div>
+    if (gameState === 'idle') return (
+      <div className="min-h-screen p-6 flex items-start justify-center">
+        <div className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2 glass p-6 rounded-2xl shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold">স্বাগতম, {user.name}</h1>
+                <p className="text-sm text-gray-600 mt-1">প্রতিটি প্রশ্নে ১৫ সেকেন্ড; দ্রুত উত্তর দিলে বেশি পয়েন্ট।</p>
+              </div>
+              <button className="btn bg-gradient-to-r from-indigo-600 to-purple-600 text-white" onClick={startGame}>গেম শুরু করুন</button>
             </div>
-            <div className="text-lg font-semibold">{p.points || 0}</div>
+
+            <div className="mt-6">
+              <h3 className="font-semibold mb-2">কিভাবে পয়েন্ট?</h3>
+              <ul className="text-sm text-gray-600 list-disc ml-5">
+                <li>সঠিকের জন্য বেস: ১০ পয়েন্ট</li>
+                <li>বোনাস: উত্তর দেওয়ার সময় বাকি সেকেন্ড যোগ হবে</li>
+                <li>টাইমআউট হলে প্রশ্ন স্কিপ হয়ে চলে যাবে</li>
+              </ul>
+            </div>
           </div>
-        ))}
+
+          <div className="glass p-6 rounded-2xl shadow">
+            <h3 className="font-semibold">লাইভ স্কোরবোর্ড</h3>
+            <ol className="mt-3 space-y-2">
+              {topPlayers.map((p, idx) => (
+                <li key={p.id} className="flex justify-between">
+                  <span>{idx+1}. {p.name}</span>
+                  <span className="font-semibold">{p.points || 0} পয়েন্ট</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
       </div>
-    </div>
+    );
 
-  </div>
-</div>
+    if (gameState === 'running') {
+      const q = questions[currentQIndex];
+      return (
+        <div className="min-h-screen p-6 flex items-center justify-center">
+          <div className="w-full max-w-3xl glass p-6 rounded-3xl shadow-lg">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-bold">প্রশ্ন {currentQIndex+1} / {questions.length}</h2>
+              <div className="text-sm font-mono">টাইম: <span className="text-xl">{time}s</span></div>
+            </div>
 
-); }
+            <div className="mt-4">
+              <div className="text-2xl font-semibold mb-4">{q.q}</div>
 
-function LoginForm({ onSubmit }) { const [name, setName] = useState(""); const [mobile, setMobile] = useState(""); return ( <form onSubmit={(e) => { e.preventDefault(); if (!name || !mobile) return alert("নাম এবং মোবাইল দিন"); onSubmit({ name, mobile }); }} > <div> <label className="block text-sm font-medium">নাম</label> <input value={name} onChange={(e) => setName(e.target.value)} className="w-full mt-1 p-2 border rounded" /> </div> <div className="mt-3"> <label className="block text-sm font-medium">মোবাইল</label> <input value={mobile} onChange={(e) => setMobile(e.target.value)} className="w-full mt-1 p-2 border rounded" /> </div> <div className="mt-4 flex justify-end"> <button className="px-4 py-2 bg-green-600 text-white rounded">লগইন / সাইনআপ</button> </div> </form> ); }
+              <div className="grid grid-cols-1 gap-4">
+                {q.options.map((opt,i) => {
+                  const isCorrect = highlight === 'correct' && q.a === i;
+                  const isWrong = highlight === 'wrong' && q.a !== i && localAnswered && i === i;
+                  const classes = "answer-btn p-4 rounded-xl text-lg border bg-white text-left";
+                  return (
+                    <button key={i}
+                      className={`${classes} ${isCorrect ? 'is-correct' : ''} ${isWrong ? 'is-wrong' : ''}`}
+                      onClick={()=>handleAnswer(i)}
+                      disabled={localAnswered}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-function PlayerCard({ player }) { if (!player) return <div className="text-sm text-gray-500">No data yet</div>; return ( <div className="mt-2 p-3 border rounded"> <div className="flex justify-between items-center"> <div> <div className="font-medium">{player.name}</div> <div className="text-sm text-gray-500">{player.mobile}</div> </div> <div className="text-right"> <div className="font-semibold">{player.points || 0} পয়েন্ট</div> <div className="text-sm">S: {player.correct || 0} W: {player.wrong || 0}</div> </div> </div> </div> ); }
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <h3 className="font-semibold">তোমার স্ট্যাটস</h3>
+                <PlayerCard player={players.find(p=>p.id===user.id)} />
+              </div>
+
+              <div>
+                <h3 className="font-semibold">লাইভ টপ 5</h3>
+                <ol className="mt-2">
+                  {topPlayers.slice(0,5).map((p, idx)=>(
+                    <li key={p.id} className="flex justify-between py-1">
+                      <span>{idx+1}. {p.name}</span>
+                      <span>{p.points || 0}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
+              <div className="hidden md:block">
+                <h3 className="font-semibold">সহজ নির্দেশ</h3>
+                <p className="text-sm text-gray-600">প্রতি প্রশ্নে ১৫ সেকেন্ড — সময় শেষ হলে অটো-স্কিপ।</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // finished
+    return (
+      <div className="min-h-screen p-6 flex items-center justify-center">
+        <div className="w-full max-w-3xl glass p-6 rounded-2xl shadow-lg">
+          <h2 className="text-2xl font-bold">ধন্যবাদ, {user.name}!</h2>
+          <p className="text-sm text-gray-600 mt-2">আপনি খেলা সম্পন্ন করেছেন। নীচে ফলাফল:</p>
+
+          <div className="mt-4">
+            <h3 className="font-semibold">Top 3</h3>
+            <ol className="mt-2">
+              {topPlayers.slice(0,3).map((p,idx)=>(
+                <li key={p.id} className="flex justify-between py-1">
+                  <span>{idx+1}. {p.name}</span>
+                  <span>{p.points || 0} পয়েন্ট</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          <div className="mt-6">
+            <h3 className="font-semibold">সকল মেম্বারের ফল</h3>
+            <div className="mt-2">
+              {players.map(p=>(
+                <div key={p.id} className="flex justify-between py-2 border-b">
+                  <div>
+                    <div className="font-medium">{p.name}</div>
+                    <div className="text-sm text-gray-500">S: {p.correct||0} W: {p.wrong||0} AvgT: {Math.round(p.avgTime||0)}s</div>
+                  </div>
+                  <div className="text-lg font-semibold">{p.points||0}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Login form component
+  function LoginForm({ onSubmit }){
+    const [name, setName] = useState('');
+    const [mobile, setMobile] = useState('');
+    return (
+      <form onSubmit={(e)=>{ e.preventDefault(); if(!name||!mobile) return alert('নাম এবং মোবাইল দিন'); onSubmit({ name, mobile }); }}>
+        <div className="mb-3">
+          <label className="block text-sm font-medium">নাম</label>
+          <input value={name} onChange={e=>setName(e.target.value)} className="w-full mt-1 p-2 border rounded" placeholder="আপনার নাম" />
+        </div>
+        <div className="mb-4">
+          <label className="block text-sm font-medium">মোবাইল</label>
+          <input value={mobile} onChange={e=>setMobile(e.target.value)} className="w-full mt-1 p-2 border rounded" placeholder="01XXXXXXXXX" />
+        </div>
+        <div className="flex justify-end">
+          <button className="btn bg-green-600 text-white" type="submit">লগইন / রেজিস্টার</button>
+        </div>
+      </form>
+    );
+  }
+
+  function PlayerCard({ player }){
+    if (!player) return <div className="text-sm text-gray-500">ডেটা এখনো নেই</div>;
+    return (
+      <div className="mt-2 p-3 border rounded bg-white">
+        <div className="flex justify-between items-center">
+          <div>
+            <div className="font-medium">{player.name}</div>
+            <div className="text-sm text-gray-500">{player.mobile}</div>
+          </div>
+          <div className="text-right">
+            <div className="font-semibold">{player.points||0} পয়েন্ট</div>
+            <div className="text-sm">S: {player.correct||0} W: {player.wrong||0}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
